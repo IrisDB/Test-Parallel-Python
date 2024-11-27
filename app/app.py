@@ -1,10 +1,10 @@
 from sdk.moveapps_spec import hook_impl
-from sdk.moveapps_io import MoveAppsIo
 from movingpandas import TrajectoryCollection
+import pandas as pd
 import logging
 import time
 
-from app.parallel import get_cpu_limit, calculate_distance
+from app.parallel import get_cpu_limit, calculate_distance, parallelize
 
 
 class App(object):
@@ -25,9 +25,8 @@ class App(object):
 
         logging.info('Check if parallel computing in Python works in MoveApps')
 
-        # find the number of cpu's that is available
-        n_cpu = 1  # get_cpu_limit()  #TODO: execute get_cpu_limit
-        logging.info(f'Number of cores currently available for parallel processing: {n_cpu}')
+        logging.info('Calculating distances using a for-loop')
+        start_for = time.time()
 
         # transfer the data to a GeoDataFrame
         data_gdf = data.to_point_gdf()
@@ -38,28 +37,25 @@ class App(object):
         logging.info(f'Track IDs discovered: {track_ids}')
 
         # calculate the distances between consecutive locations per individual in a for-loop
-        start_for = time.time()
-        logging.info('Calculating distances')
+        results = []
         for i in track_ids:
             logging.info(f'Calculating distances for {i}')
-            result = calculate_distance(data_gdf)  # TODO: merge data back together
-            #logging.info(result)
+            results.append(calculate_distance(data_gdf[data_gdf[track_id_col_name] == i].copy()))
+        data_result_for = pd.concat(results)
+        logging.info(data_result_for)
         time_for = time.time() - start_for
         logging.info(f'Time used for calculating distances in a for-loop: {time_for}')
 
         # calculate the distances between consecutive locations per individual using parallel computing
         start_par = time.time()
-        logging.info('Calculating distances')
-        for i in track_ids:  # TODO: replace by parallel computing + merge data back together
-            logging.info(f'Calculating distances for {i}')
-            result = calculate_distance(data_gdf)
-            #logging.info(result)
+        logging.info('Calculating distances using parallel computing')
+        data_result_par = parallelize(data, calculate_distance)
+        logging.info(data_result_par)
         time_par = time.time() - start_par
-        logging.info(f'Time used for calculating distances in a for-loop: {time_par}')
+        logging.info(f'Time used for calculating distances using parallel computing: {time_par}')
 
-        auxiliary_file_a = MoveAppsIo.get_auxiliary_file_path("auxiliary-file-a")
-        with open(auxiliary_file_a, 'r') as f:
-            logging.info(f.read())
+        # test whether the outputs are the same
+        logging.info(f'Are the results the same? - {data_result_for.equals(data_result_par)}')
 
         # return some useful data for next apps in the workflow
         return data
