@@ -8,6 +8,7 @@ import time
 import geopy.distance
 import multiprocessing as mp
 
+
 def get_cpu_limit() -> int:
     """
     From https://donghao.org/2022/01/20/how-to-get-the-number-of-cpu-cores-inside-a-container/
@@ -33,31 +34,31 @@ def calculate_distance(data: GeoDataFrame) -> GeoDataFrame:
     data["x"] = data.get_coordinates(include_z=False)["x"]
     data["y"] = data.get_coordinates(include_z=False)["y"]
 
+
     logger = mp.get_logger()
     logger.setLevel(logging.INFO)
     logger.info("Calculating Distances")
 
-    # Calculate the distance between the locations for each row in the data
-    distances = [None] * (len(data)-1)
+    # calculate the distance between the locations for each row in the data
+    distances = [None] * (len(data) - 1)
     for row in range(len(data) - 1):
         distances[row] = geopy.distance.distance((data["y"].iloc()[row], data["x"].iloc()[row]),
-                                                 (data["y"].iloc()[row+1], data["x"].iloc()[row+1])).km
+                                                 (data["y"].iloc()[row + 1], data["x"].iloc()[row + 1])).km
 
     data["distance_from_previous_geopy"] = [None] + distances
 
-    # Now wait for 10 seconds
+    # now wait for 10 seconds
     logging.info("Sleeping for 10 seconds")
     time.sleep(10)
 
-    # Return the data with distances
+    # return the data with distances
     return data
 
 
 def parallelize(data: TrajectoryCollection, func) -> GeoDataFrame:
-
     """
     :param data:
-    :param func:
+    :param func: The function that needs to be executed in parallel
     :return:
     """
 
@@ -95,12 +96,14 @@ def parallelize(data: TrajectoryCollection, func) -> GeoDataFrame:
     else:
         n_cpu = len(track_ids)
 
-    # split the data by
+    logging.info(f'Number of cores that will be used for parallel processing: {n_cpu}')
+
+    # split the data by trackID
     data_split = [data_gdf[data_gdf[track_id_col_name] == tr_id] for tr_id in track_ids]
 
-    # define
+    # multiprocessing
     pool = mp.Pool(n_cpu)
-    data_return = pd.concat(pool.map(func, data_split), ignore_index=True)
+    data_return = pd.concat(pool.map(func, data_split), ignore_index=False)
     pool.close()
 
     # return the resulting data
