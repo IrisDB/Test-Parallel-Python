@@ -1,5 +1,3 @@
-from multiprocessing import cpu_count
-
 import pandas as pd
 from geopandas.geodataframe import GeoDataFrame
 from movingpandas import TrajectoryCollection
@@ -7,6 +5,7 @@ import logging
 import time
 import geopy.distance
 import multiprocessing as mp
+
 
 
 def get_cpu_limit() -> int:
@@ -20,7 +19,7 @@ def get_cpu_limit() -> int:
         cfs_period_us = int(fp.read())
     container_cpus = cfs_quota_us // cfs_period_us
     # For physical machine, the `cfs_quota_us` could be '-1'
-    cpus = cpu_count() if container_cpus < 1 else container_cpus
+    cpus = mp.cpu_count() if container_cpus < 1 else container_cpus
     return cpus
 
 
@@ -30,14 +29,13 @@ def calculate_distance(data: GeoDataFrame) -> GeoDataFrame:
     :param data: a GeoDataFrame
     :return: input data with distances in km
     """
+    mp.log_to_stderr(logging.INFO)
+
     data.set_crs('epsg:4326')
     data["x"] = data.get_coordinates(include_z=False)["x"]
     data["y"] = data.get_coordinates(include_z=False)["y"]
 
-
-    logger = mp.get_logger()
-    logger.setLevel(logging.INFO)
-    logger.info("Calculating Distances")
+    logging.info("Calculating distances")
 
     # calculate the distance between the locations for each row in the data
     distances = [None] * (len(data) - 1)
@@ -61,6 +59,8 @@ def parallelize(data: TrajectoryCollection, func) -> GeoDataFrame:
     :param func: The function that needs to be executed in parallel
     :return:
     """
+
+    logging.info("Function parallelize has been started")
 
     # transfer the data to a GeoDataFrame
     data_gdf = data.to_point_gdf()

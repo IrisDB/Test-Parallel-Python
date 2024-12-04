@@ -24,6 +24,8 @@ class App(object):
 
         logging.info(f'Welcome to the {config}')
 
+        logging.info('Main process started.')
+
         logging.info('Check if parallel computing in Python works in MoveApps')
 
         logging.info('Calculating distances using a for-loop')
