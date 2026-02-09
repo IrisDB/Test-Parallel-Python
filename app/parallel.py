@@ -71,22 +71,8 @@ def parallelize(data: TrajectoryCollection, func) -> GeoDataFrame:
     logging.info(f'Track IDs discovered: {track_ids}')
 
     # find the number of CPUs that is available
-    n_cpu = 0
-    try:
-        n_cpu = get_cpu_limit()
-        logging.info(f'get_cpu_limit() found {n_cpu} CPUs')
-    except Exception as e:
-        logging.error(f'The following error occurred in get_cpu_limit(): {e}')
-
-    try:
-        n_cpu = mp.cpu_count()
-        logging.info(f'mp.cpu_count() found {n_cpu} CPUs')
-    except Exception as e:
-        logging.error(f'The following error occurred in mp.cpu_count(): {e}')
-
-    if n_cpu == 0:
-        n_cpu = 3
-        logging.info("Methods to determine the number of CPUs failed. Set number of CPUs to 3")
+    n_cpu = mp.cpu_count()
+    logging.info(f'mp.cpu_count() found {n_cpu} CPUs')
 
     logging.info(f'Number of cores currently available for parallel processing: {n_cpu}')
 
