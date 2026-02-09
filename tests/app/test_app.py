@@ -5,6 +5,7 @@ from app.app import App
 from sdk.moveapps_io import MoveAppsIo
 import pandas as pd
 import movingpandas as mpd
+import numpy as np
 
 
 class MyTestCase(unittest.TestCase):
@@ -16,26 +17,12 @@ class MyTestCase(unittest.TestCase):
     def test_app_runs(self):
         # prepare
         data: mpd.TrajectoryCollection = pd.read_pickle(os.path.join(ROOT_DIR, 'tests/resources/app/input4_LatLon.pickle'))
-        config: dict = {
-            "year": 2014
-        }
+        config: dict = {}
 
         # execute
         self.sut.execute(data=data, config=config)
 
-    def test_app_config(self):
-        # prepare
-        config = {
-            "year": 2014
-        }
-
-        # execute
-        actual = config
-
-        # verify
-        self.assertEqual(2014, actual["year"])
-
-    def test_year_present(self):
+    def test_distance_calculated(self):
         # prepare input data
         df = pd.DataFrame([
             {'timestamp_utc': "2001-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_1'},
@@ -49,7 +36,7 @@ class MyTestCase(unittest.TestCase):
             {'timestamp_utc': "2001-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_2'},
             {'timestamp_utc': "2001-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_2'}
         ])
-        input = mpd.TrajectoryCollection(
+        df_in = mpd.TrajectoryCollection(
             df,
             traj_id_col='track_id',
             t='timestamp_utc',
@@ -58,17 +45,20 @@ class MyTestCase(unittest.TestCase):
         )
 
         # prepare configuration
-        config = {
-            "year": 2001
-        }
+        config = {}
 
         # prepare expected data
         df_e = pd.DataFrame([
-            {'timestamp_utc': "2001-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2001-07-12 09:00:00", 'coords_x': 2, 'coords_y': 4, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2001-08-13 09:00:00", 'coords_x': 3, 'coords_y': 3, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2001-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2001-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_2'}
+            {'timestamp_utc': "2001-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_1', 'distance_from_previous_geopy': np.nan},
+            {'timestamp_utc': "2001-07-12 09:00:00", 'coords_x': 2, 'coords_y': 4, 'track_id': 'ID_1', 'distance_from_previous_geopy': 156.66564184752647},
+            {'timestamp_utc': "2002-08-13 09:00:00", 'coords_x': 3, 'coords_y': 3, 'track_id': 'ID_1', 'distance_from_previous_geopy': 156.75914242784864},
+            {'timestamp_utc': "2002-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_1', 'distance_from_previous_geopy': 156.82932911607335},
+            {'timestamp_utc': "2002-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_1', 'distance_from_previous_geopy': 156.87614940188664},
+            {'timestamp_utc': "2000-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_2', 'distance_from_previous_geopy': np.nan},
+            {'timestamp_utc': "2000-07-12 09:00:00", 'coords_x': 2, 'coords_y': 4, 'track_id': 'ID_2', 'distance_from_previous_geopy': 156.66564184752647},
+            {'timestamp_utc': "2001-08-13 09:00:00", 'coords_x': 3, 'coords_y': 3, 'track_id': 'ID_2', 'distance_from_previous_geopy': 156.75914242784864},
+            {'timestamp_utc': "2001-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_2', 'distance_from_previous_geopy': 156.82932911607335},
+            {'timestamp_utc': "2001-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_2', 'distance_from_previous_geopy': 156.87614940188664}
         ])
         expected = mpd.TrajectoryCollection(
             df_e,
@@ -79,46 +69,24 @@ class MyTestCase(unittest.TestCase):
         )
 
         # execute
-        actual = self.sut.execute(data=input, config=config)
+        actual = self.sut.execute(data=df_in, config=config)
 
         # verify timestamps
-        self.assertEqual(actual.to_point_gdf().index.strftime("%Y-%m-%d %H:%M:%S").tolist(),expected.to_point_gdf().index.strftime("%Y-%m-%d %H:%M:%S").tolist())
+        self.assertEqual(actual.to_point_gdf().index.strftime("%Y-%m-%d %H:%M:%S").tolist(),
+                         expected.to_point_gdf().index.strftime("%Y-%m-%d %H:%M:%S").tolist())
 
         # verify track ids
-        self.assertEqual(actual.to_point_gdf()[actual.get_traj_id_col()].unique().tolist(), expected.to_point_gdf()[expected.get_traj_id_col()].unique().tolist())
+        self.assertEqual(actual.to_point_gdf()[actual.get_traj_id_col()].unique().tolist(),
+                         expected.to_point_gdf()[expected.get_traj_id_col()].unique().tolist())
 
-    def test_year_not_present(self):
-        # prepare input data
-        df = pd.DataFrame([
-            {'timestamp_utc': "2001-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2001-07-12 09:00:00", 'coords_x': 2, 'coords_y': 4, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2002-08-13 09:00:00", 'coords_x': 3, 'coords_y': 3, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2002-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2002-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_1'},
-            {'timestamp_utc': "2000-06-11 09:00:00", 'coords_x': 1, 'coords_y': 5, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2000-07-12 09:00:00", 'coords_x': 2, 'coords_y': 4, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2001-08-13 09:00:00", 'coords_x': 3, 'coords_y': 3, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2001-09-14 09:00:00", 'coords_x': 4, 'coords_y': 2, 'track_id': 'ID_2'},
-            {'timestamp_utc': "2001-10-15 09:00:00", 'coords_x': 5, 'coords_y': 1, 'track_id': 'ID_2'}
-        ])
-        input = mpd.TrajectoryCollection(
-            df,
-            traj_id_col='track_id',
-            t='timestamp_utc',
-            crs='epsg:4326',
-            x='coords_x', y='coords_y'
+        # verify distances
+        self.assertTrue(
+            np.allclose(
+                actual.to_point_gdf()['distance_from_previous_geopy'].tolist(),
+                expected.to_point_gdf()['distance_from_previous_geopy'].tolist(),
+                equal_nan=True
+            )
         )
-
-        # prepare configuration
-        config = {
-            "year": 2100
-        }
-
-        # execute
-        actual = self.sut.execute(data=input, config=config)
-
-        # verify
-        self.assertIsNone(actual)
 
     """
     # Use this test if the App should return the input data
